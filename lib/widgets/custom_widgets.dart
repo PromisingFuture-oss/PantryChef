@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
+import '../screens/pantry_shopping_screen.dart';
 
 class LoadingPancake extends StatefulWidget {
   const LoadingPancake({super.key});
@@ -40,7 +41,8 @@ class _LoadingPancakeState extends State<LoadingPancake>
 }
 
 class NavButton extends StatelessWidget {
-  const NavButton({super.key, 
+  const NavButton({
+    super.key,
     required this.label,
     required this.onPressed,
     this.isPrimary = false,
@@ -72,7 +74,11 @@ class NavButton extends StatelessWidget {
 }
 
 class FeatureCard extends StatelessWidget {
-  const FeatureCard({super.key, required this.title, required this.description});
+  const FeatureCard({
+    super.key,
+    required this.title,
+    required this.description,
+  });
 
   final String title;
   final String description;
@@ -194,6 +200,42 @@ class RecipeCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class CommonBurgerMenu extends StatelessWidget {
+  final double? iconSize;
+  const CommonBurgerMenu({super.key, this.iconSize});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      color: Colors.white,
+      icon: Icon(Icons.menu, color: Colors.white, size: iconSize ?? 24),
+      onSelected: (value) {
+        switch (value) {
+          case 'home':
+            Navigator.popUntil(context, (route) => route.isFirst);
+            break;
+          case 'pantry':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                settings: const RouteSettings(name: '/pantry'),
+                builder: (context) => const PantryShoppingScreen(),
+              ),
+            );
+            break;
+        }
+      },
+      itemBuilder: (BuildContext context) => [
+        const PopupMenuItem(value: 'home', child: Text('🏠 Home')),
+        const PopupMenuItem(
+          value: 'pantry',
+          child: Text('🍱 Pantry & Shopping list'),
+        ),
+      ],
     );
   }
 }
