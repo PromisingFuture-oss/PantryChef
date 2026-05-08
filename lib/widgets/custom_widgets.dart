@@ -174,6 +174,8 @@ class RecipeCard extends StatelessWidget {
                         color: Color(0xFF78A083),
                         fontWeight: FontWeight.w700,
                       ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -184,14 +186,16 @@ class RecipeCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'Ingredients: ${recipe.ingredients.take(4).join(', ')}${recipe.ingredients.length > 4 ? '...' : ''}',
-                      style: const TextStyle(
-                        color: Color(0xFF666666),
-                        height: 1.4,
+                    Flexible(
+                      child: Text(
+                        'Ingredients: ${recipe.ingredients.take(4).join(', ')}${recipe.ingredients.length > 4 ? '...' : ''}',
+                        style: const TextStyle(
+                          color: Color(0xFF666666),
+                          height: 1.4,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

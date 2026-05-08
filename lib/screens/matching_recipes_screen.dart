@@ -21,6 +21,7 @@ class MatchingRecipesScreen extends StatefulWidget {
 class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
   late List<String> _userIngredients;
   late List<RecipeMatch> _results;
+  int? _maxTimeMinutes;
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
     _results = RecipeSearchService.search(
       database: widget.recipeDatabase,
       userIngredients: _userIngredients,
+      maxTimeMinutes: _maxTimeMinutes == 120 ? null : _maxTimeMinutes,
     );
   }
 
@@ -212,13 +214,21 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   InkWell(
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push<int>(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SmartFilterScreen(),
+                          builder: (context) => SmartFilterScreen(
+                            initialTimeMinutes: _maxTimeMinutes ?? 120,
+                          ),
                         ),
                       );
+                      if (result != null) {
+                        setState(() {
+                          _maxTimeMinutes = result;
+                          _performSearch();
+                        });
+                      }
                     },
                     borderRadius: BorderRadius.circular(20),
                     child: Container(

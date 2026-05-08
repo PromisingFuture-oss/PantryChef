@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'allergy_filter_screen.dart';
 
 class SmartFilterScreen extends StatefulWidget {
-  const SmartFilterScreen({super.key});
+  final int initialTimeMinutes;
+
+  const SmartFilterScreen({super.key, this.initialTimeMinutes = 120});
 
   @override
   State<SmartFilterScreen> createState() => _SmartFilterScreenState();
@@ -16,7 +18,13 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
   bool _isGlutenFree = false;
   bool _isLowCarb = false;
 
-  double _totalTime = 15;
+  late double _totalTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _totalTime = widget.initialTimeMinutes.toDouble();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,8 +147,8 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                   // Total Time Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'Total Time',
                         style: TextStyle(
                           fontSize: 18,
@@ -149,8 +157,10 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                         ),
                       ),
                       Text(
-                        'mins',
-                        style: TextStyle(
+                        _totalTime == 120
+                            ? 'No limit'
+                            : '${_totalTime.toInt()} mins',
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: Color(0xFF222222),
@@ -175,8 +185,8 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                     child: Slider(
                       value: _totalTime,
                       min: 0,
-                      max: 30,
-                      divisions: 2,
+                      max: 120,
+                      divisions: 8,
                       onChanged: (value) {
                         setState(() {
                           _totalTime = value;
@@ -197,14 +207,14 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                           ),
                         ),
                         Text(
-                          '15',
+                          '60',
                           style: TextStyle(
                             color: Color(0xFF4A4A4A),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
-                          '30',
+                          '120+',
                           style: TextStyle(
                             color: Color(0xFF4A4A4A),
                             fontWeight: FontWeight.w500,
@@ -262,7 +272,10 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pop(context); // Go back
+                        Navigator.pop(
+                          context,
+                          _totalTime.toInt(),
+                        ); // Return selected time
                       },
                       child: const Text(
                         'Apply Filters',
