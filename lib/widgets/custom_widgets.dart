@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/recipe.dart';
 
 class LoadingPancake extends StatefulWidget {
-  const LoadingPancake();
+  const LoadingPancake({super.key});
 
   @override
   State<LoadingPancake> createState() => _LoadingPancakeState();
@@ -40,7 +40,7 @@ class _LoadingPancakeState extends State<LoadingPancake>
 }
 
 class NavButton extends StatelessWidget {
-  const NavButton({
+  const NavButton({super.key, 
     required this.label,
     required this.onPressed,
     this.isPrimary = false,
@@ -72,7 +72,7 @@ class NavButton extends StatelessWidget {
 }
 
 class FeatureCard extends StatelessWidget {
-  const FeatureCard({required this.title, required this.description});
+  const FeatureCard({super.key, required this.title, required this.description});
 
   final String title;
   final String description;
@@ -114,7 +114,7 @@ class FeatureCard extends StatelessWidget {
 }
 
 class RecipeCard extends StatelessWidget {
-  const RecipeCard({required this.recipe, required this.onTap});
+  const RecipeCard({super.key, required this.recipe, required this.onTap});
 
   final Recipe recipe;
   final VoidCallback onTap;

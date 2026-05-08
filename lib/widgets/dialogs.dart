@@ -1,98 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
-import '../services/recipe_search_service.dart';
 import '../utils/decorations.dart';
-
+import '../screens/recipe_detail_page.dart';
+import '../screens/matching_recipes_screen.dart';
 
 class RecipeDialogs {
   static void showRecipeDetail(BuildContext context, Recipe recipe) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 600),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(recipe.icon, style: const TextStyle(fontSize: 64)),
-                        const SizedBox(height: 8),
-                        Text(
-                          recipe.name,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF78A083),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '⏱️ ${recipe.timeMinutes} minutes',
-                          style: const TextStyle(
-                            color: Color(0xFFFF8C69),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Ingredients',
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Color(0xFF78A083),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...recipe.ingredients.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text('• $item'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Instructions',
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Color(0xFF78A083),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...recipe.instructions.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Text('${entry.key + 1}. ${entry.value}'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => RecipeDetailPage(recipe: recipe)),
     );
   }
 
   static void showFindRecipes(
     BuildContext context,
-    List<Recipe> recipeDatabase,
-  ) {
+    List<Recipe> recipeDatabase, {
+    List<String> initialIngredients = const [],
+  }) {
     showDialog<void>(
       context: context,
       builder: (context) => FindRecipesDialog(
         recipeDatabase: recipeDatabase,
         pageContext: context,
+        initialIngredients: initialIngredients,
       ),
     );
   }
@@ -108,8 +37,8 @@ class RecipeDialogs {
     final Color badgeColor = ratio >= 0.75
         ? const Color(0xFF3A7A50)
         : ratio >= 0.4
-            ? const Color(0xFF78A083)
-            : const Color(0xFFFF8C69);
+        ? const Color(0xFF78A083)
+        : const Color(0xFFFF8C69);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -159,10 +88,7 @@ class RecipeDialogs {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  match.recipe.icon,
-                  style: const TextStyle(fontSize: 22),
-                ),
+                Text(match.recipe.icon, style: const TextStyle(fontSize: 22)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -375,19 +301,6 @@ class RecipeDialogs {
       ),
     );
   }
-
-  static void showAddRecipe(
-    BuildContext context,
-    Function(Recipe) onRecipeAdded,
-  ) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AddRecipeDialog(
-        onRecipeAdded: onRecipeAdded,
-        pageContext: context,
-      ),
-    );
-  }
 }
 
 class FindRecipesDialog extends StatefulWidget {
@@ -395,10 +308,12 @@ class FindRecipesDialog extends StatefulWidget {
     super.key,
     required this.recipeDatabase,
     required this.pageContext,
+    this.initialIngredients = const [],
   });
 
   final List<Recipe> recipeDatabase;
   final BuildContext pageContext;
+  final List<String> initialIngredients;
 
   @override
   State<FindRecipesDialog> createState() => _FindRecipesDialogState();
@@ -406,14 +321,13 @@ class FindRecipesDialog extends StatefulWidget {
 
 class _FindRecipesDialogState extends State<FindRecipesDialog> {
   late final TextEditingController _inputController;
-  final List<String> _selectedIngredients = [];
-  List<RecipeMatch> _results = [];
-  bool _hasSearched = false;
+  late List<String> _selectedIngredients;
 
   @override
   void initState() {
     super.initState();
     _inputController = TextEditingController();
+    _selectedIngredients = List.from(widget.initialIngredients);
   }
 
   @override
@@ -492,7 +406,7 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                             controller: _inputController,
                             textInputAction: TextInputAction.done,
                             decoration: InputDecoration(
-                              hintText: 'search recipe',
+                              hintText: 'Add recipe',
                               prefixIcon: const Icon(
                                 Icons.set_meal_outlined,
                                 color: Color(0xFF78A083),
@@ -527,7 +441,8 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () => _addIngredient(_inputController.text),
+                          onPressed: () =>
+                              _addIngredient(_inputController.text),
                           child: const Icon(Icons.add),
                         ),
                       ],
@@ -560,12 +475,6 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                               if (mounted) {
                                 setState(() {
                                   _selectedIngredients.remove(ingredient);
-                                  if (_hasSearched) {
-                                    _results = RecipeSearchService.search(
-                                      database: widget.recipeDatabase,
-                                      userIngredients: _selectedIngredients,
-                                    );
-                                  }
                                 });
                               }
                             },
@@ -585,23 +494,28 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                         ),
                         onPressed: () {
                           if (_selectedIngredients.isEmpty) {
-                            ScaffoldMessenger.of(widget.pageContext).showSnackBar(
+                            ScaffoldMessenger.of(
+                              widget.pageContext,
+                            ).showSnackBar(
                               const SnackBar(
-                                content: Text('Please add at least one ingredient.'),
+                                content: Text(
+                                  'Please add at least one ingredient.',
+                                ),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
                             return;
                           }
-                          if (mounted) {
-                            setState(() {
-                              _hasSearched = true;
-                              _results = RecipeSearchService.search(
-                                database: widget.recipeDatabase,
-                                userIngredients: _selectedIngredients,
-                              );
-                            });
-                          }
+                          FocusScope.of(widget.pageContext).unfocus();
+                          Navigator.of(context).pop();
+                          Navigator.of(widget.pageContext).push(
+                            MaterialPageRoute(
+                              builder: (context) => MatchingRecipesScreen(
+                                recipeDatabase: widget.recipeDatabase,
+                                initialIngredients: _selectedIngredients,
+                              ),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.search),
                         label: const Text(
@@ -610,63 +524,6 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                         ),
                       ),
                     ),
-                    if (_hasSearched) ...[
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          const Text(
-                            'Matching Recipes',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF78A083),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _results.isEmpty
-                                  ? const Color(0xFFFFE0D6)
-                                  : const Color(0xFFDEF0E5),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${_results.length} found',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _results.isEmpty
-                                    ? const Color(0xFFD94F2A)
-                                    : const Color(0xFF3A7A50),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (_results.isEmpty)
-                        RecipeDialogs._buildEmptyState()
-                      else
-                        ..._results.asMap().entries.map(
-                          (entry) => RecipeDialogs._buildResultCard(
-                            context: context,
-                            match: entry.value,
-                            rank: entry.key + 1,
-                            onViewRecipe: () {
-                              FocusScope.of(widget.pageContext).unfocus();
-                              Navigator.of(context).pop();
-                              RecipeDialogs.showRecipeDetail(
-                                widget.pageContext,
-                                entry.value.recipe,
-                              );
-                            },
-                          ),
-                        ),
-                    ],
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -686,300 +543,6 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class AddRecipeDialog extends StatefulWidget {
-  const AddRecipeDialog({
-    super.key,
-    required this.onRecipeAdded,
-    required this.pageContext,
-  });
-
-  final Function(Recipe) onRecipeAdded;
-  final BuildContext pageContext;
-
-  @override
-  State<AddRecipeDialog> createState() => _AddRecipeDialogState();
-}
-
-class _AddRecipeDialogState extends State<AddRecipeDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _emojiController;
-  late final TextEditingController _timeController;
-  late final TextEditingController _ingredientNameController;
-  late final TextEditingController _ingredientQtyController;
-  late final TextEditingController _stepController;
-
-  final List<IngredientAmount> _ingredients = [];
-  final List<String> _instructionSteps = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController();
-    _emojiController = TextEditingController();
-    _timeController = TextEditingController();
-    _ingredientNameController = TextEditingController();
-    _ingredientQtyController = TextEditingController();
-    _stepController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emojiController.dispose();
-    _timeController.dispose();
-    _ingredientNameController.dispose();
-    _ingredientQtyController.dispose();
-    _stepController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 700),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Add New Recipe',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF78A083),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: fieldDecoration('Recipe Name'),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emojiController,
-                    decoration: fieldDecoration('Emoji (e.g., 🍝)'),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _timeController,
-                    keyboardType: TextInputType.number,
-                    decoration: fieldDecoration('Cooking Time in minutes'),
-                    validator: (value) {
-                      final parsed = int.tryParse(value ?? '');
-                      if (parsed == null || parsed <= 0) {
-                        return 'Enter a valid number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Ingredients',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: TextField(
-                          controller: _ingredientNameController,
-                          decoration: fieldDecoration('Ingredient name'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _ingredientQtyController,
-                          decoration: fieldDecoration('Quantity'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF78A083),
-                        ),
-                        onPressed: () {
-                          final name = _ingredientNameController.text.trim();
-                          final qty = _ingredientQtyController.text.trim();
-                          if (name.isEmpty || qty.isEmpty) return;
-                          if (mounted) {
-                            setState(() {
-                              _ingredients.add(
-                                IngredientAmount(ingredient: name, amount: qty),
-                              );
-                              _ingredientNameController.clear();
-                              _ingredientQtyController.clear();
-                            });
-                          }
-                        },
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _ingredients.map((item) {
-                      return Chip(
-                        label: Text('${item.ingredient} - ${item.amount}'),
-                        backgroundColor: const Color(0xFF78A083),
-                        labelStyle: const TextStyle(color: Colors.white),
-                        deleteIconColor: Colors.white,
-                        onDeleted: () {
-                          if (mounted) {
-                            setState(() {
-                              _ingredients.remove(item);
-                            });
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Instructions',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _stepController,
-                          minLines: 2,
-                          maxLines: 3,
-                          decoration: fieldDecoration('Enter step'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF78A083),
-                        ),
-                        onPressed: () {
-                          final step = _stepController.text.trim();
-                          if (step.isEmpty) return;
-                          if (mounted) {
-                            setState(() {
-                              _instructionSteps.add(step);
-                              _stepController.clear();
-                            });
-                          }
-                        },
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._instructionSteps.asMap().entries.map(
-                    (entry) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FDF9),
-                        borderRadius: BorderRadius.circular(8),
-                        border: const Border(
-                          left: BorderSide(color: Color(0xFF78A083), width: 3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundColor: const Color(0xFF78A083),
-                            child: Text(
-                              '${entry.key + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(entry.value)),
-                          IconButton(
-                            onPressed: () {
-                              if (mounted) {
-                                setState(() {
-                                  _instructionSteps.removeAt(entry.key);
-                                });
-                              }
-                            },
-                            icon: const Icon(
-                              Icons.close,
-                              color: Color(0xFFFF6B4A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8C69),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        if (!_formKey.currentState!.validate()) return;
-                        if (_ingredients.isEmpty || _instructionSteps.isEmpty) {
-                          ScaffoldMessenger.of(widget.pageContext).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Add at least one ingredient and instruction.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final newRecipe = Recipe(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          name: _nameController.text.trim(),
-                          icon: _emojiController.text.trim(),
-                          timeMinutes: int.parse(_timeController.text.trim()),
-                          ingredients: _ingredients
-                              .map((item) => '${item.ingredient} - ${item.amount}')
-                              .toList(),
-                          instructions: _instructionSteps.toList(),
-                        );
-
-                        widget.onRecipeAdded(newRecipe);
-                        FocusScope.of(widget.pageContext).unfocus();
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(widget.pageContext).showSnackBar(
-                          const SnackBar(content: Text('Recipe added successfully!')),
-                        );
-                      },
-                      child: const Text('Save Recipe'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );

@@ -4,6 +4,7 @@ import '../models/recipe.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/dialogs.dart';
 import 'sections.dart';
+import 'pantry_shopping_screen.dart';
 
 class PantryChefHomePage extends StatefulWidget {
   const PantryChefHomePage({super.key});
@@ -103,18 +104,22 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
       id: 'omelette',
       name: 'Spanish Omelette',
       icon: '🍳',
-      timeMinutes: 20,
+      timeMinutes: 45,
+      imageUrl:
+          'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/spanish-omelette-7c2250c.jpg',
       ingredients: const [
         '6 Eggs',
         '3 Potatoes',
         '1 Onion',
-        'Olive Oil',
-        'Salt and Pepper',
+        '150ml extra-virgin olive oil',
+        '3 tbsp chopped flat-leaf parsley',
       ],
       instructions: const [
-        'Cook sliced potatoes and onion until tender.',
-        'Mix cooked vegetables with beaten eggs.',
-        'Cook gently in a pan, flip once, and finish.',
+        'Scrape the new potatoes or leave the skins on, if you prefer. Cut them into thick slices. Chop the onion.',
+        'Heat the extra-virgin olive oil in a large frying pan, add the potatoes and onion and stew gently, partially covered, for 30 mins, stirring occasionally until the potatoes are softened. Strain the potatoes and onion through a colander into a large bowl (set the strained oil aside).',
+        'Beat the eggs then stir into the potatoes with the parsley and plenty of salt and pepper. Heat a little of the strained oil in a smaller pan.',
+        'Tip everything into the pan and cook on a moderate heat until the bottom is golden and the top is almost set.',
+        'Invert the omelette onto a plate and slide back into the pan. Cook for another 5 minutes until golden on both sides.',
       ],
     ),
     Recipe(
@@ -203,12 +208,13 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
               case 'recipes':
                 _scrollToSection(_recipesSectionKey);
                 break;
-              case 'add':
-                RecipeDialogs.showAddRecipe(context, (newRecipe) {
-                  setState(() {
-                    _recipes.add(newRecipe);
-                  });
-                });
+              case 'pantry':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PantryShoppingScreen(),
+                  ),
+                );
                 break;
               case 'about':
                 _scrollToSection(_aboutSectionKey);
@@ -220,18 +226,12 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
               value: 'cook',
               child: Text('👩‍🍳 Let\'s cook'),
             ),
+            const PopupMenuItem(value: 'recipes', child: Text('📖 Recipes')),
             const PopupMenuItem(
-              value: 'recipes',
-              child: Text('📖 Recipes'),
+              value: 'pantry',
+              child: Text('🍱 Pantry & Shopping list'),
             ),
-            const PopupMenuItem(
-              value: 'add',
-              child: Text('✨ Add new Recipe'),
-            ),
-            const PopupMenuItem(
-              value: 'about',
-              child: Text('👥 About Us'),
-            ),
+            const PopupMenuItem(value: 'about', child: Text('👥 About Us')),
           ],
         ),
         const SizedBox(width: 8),
@@ -249,12 +249,15 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         onPressed: () => _scrollToSection(_recipesSectionKey),
       ),
       NavButton(
-        label: '✨ Add new Recipe',
-        onPressed: () => RecipeDialogs.showAddRecipe(context, (newRecipe) {
-          setState(() {
-            _recipes.add(newRecipe);
-          });
-        }),
+        label: '🍱 Pantry & Shopping list',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PantryShoppingScreen(),
+            ),
+          );
+        },
       ),
       NavButton(
         label: '👥 About Us',

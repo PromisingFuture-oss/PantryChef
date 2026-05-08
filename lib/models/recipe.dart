@@ -6,6 +6,7 @@ class Recipe {
     required this.timeMinutes,
     required this.ingredients,
     required this.instructions,
+    this.imageUrl,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class Recipe {
   final int timeMinutes;
   final List<String> ingredients;
   final List<String> instructions;
+  final String? imageUrl;
 }
 
 class IngredientAmount {
