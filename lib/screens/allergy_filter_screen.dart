@@ -22,6 +22,14 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
   ];
 
   final Set<String> _selectedAllergens = {'Dairy'};
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,8 +111,14 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
                       ),
                     ),
                     child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Select Allergens to (e.g., Coconut)',
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.toLowerCase();
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search Allergens (e.g., Coconut)',
                         hintStyle: TextStyle(
                           color: Color(0xFF999999),
                           fontSize: 14,
@@ -114,11 +128,22 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
                           horizontal: 16,
                           vertical: 14,
                         ),
-                        suffixIcon: Icon(
-                          Icons.search,
-                          color: Color(0xFF222222),
-                          size: 26,
-                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear,
+                                    color: Color(0xFF222222)),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : const Icon(
+                                Icons.search,
+                                color: Color(0xFF222222),
+                                size: 26,
+                              ),
                       ),
                     ),
                   ),
@@ -144,7 +169,10 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
                   const SizedBox(height: 16),
 
                   // Allergens List
-                  ..._allergens.map((allergen) => _buildAllergenItem(allergen)),
+                  ..._allergens
+                      .where((allergen) =>
+                          allergen.toLowerCase().contains(_searchQuery))
+                      .map((allergen) => _buildAllergenItem(allergen)),
 
                   const SizedBox(height: 40),
                 ],

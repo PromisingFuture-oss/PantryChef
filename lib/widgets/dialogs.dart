@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/recipe.dart';
 
 import '../screens/recipe_detail_page.dart';
@@ -77,6 +77,7 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640, maxHeight: 720),
@@ -98,17 +99,27 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'ðŸ” Reverse Recipe Search',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                   Row(
+                    children: [
+                      Text(
+                        '🔍 ',
+                        style: TextStyle(fontSize: 22),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Reverse Recipe Search',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Add ingredients you have â€” we\'ll rank matching recipes.',
+                    'Add ingredients you have — we\'ll rank matching recipes.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withValues(alpha: 0.88),
@@ -130,9 +141,9 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                             controller: _inputController,
                             textInputAction: TextInputAction.done,
                             decoration: InputDecoration(
-                              hintText: 'Add recipe',
+                              hintText: 'Search recipes...',
                               prefixIcon: const Icon(
-                                Icons.set_meal_outlined,
+                                Icons.restaurant_menu,
                                 color: Color(0xFF78A083),
                               ),
                               border: OutlineInputBorder(
@@ -180,13 +191,7 @@ class _FindRecipesDialogState extends State<FindRecipesDialog> {
                           return Chip(
                             avatar: const CircleAvatar(
                               backgroundColor: Color(0xFF5C8068),
-                              child: Text(
-                                'âœ“',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
+                                child: Icon(Icons.check, color: Colors.white, size: 14),
                             ),
                             label: Text(ingredient),
                             backgroundColor: const Color(0xFF78A083),
