@@ -16,6 +16,36 @@ class Recipe {
   final List<String> ingredients;
   final List<String> instructions;
   final String? imageUrl;
+
+  /// Create a [Recipe] from a JSON map.
+  factory Recipe.fromJson(Map<String, dynamic> json) {
+    return Recipe(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      icon: json['icon'] as String,
+      timeMinutes: json['timeMinutes'] as int,
+      ingredients: (json['ingredients'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      instructions: (json['instructions'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      imageUrl: json['imageUrl'] as String?,
+    );
+  }
+
+  /// Serialize this [Recipe] to a JSON-compatible map.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'icon': icon,
+      'timeMinutes': timeMinutes,
+      'ingredients': ingredients,
+      'instructions': instructions,
+      'imageUrl': imageUrl,
+    };
+  }
 }
 
 class IngredientAmount {

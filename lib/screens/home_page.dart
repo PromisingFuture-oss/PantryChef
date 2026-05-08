@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
+import '../services/meal_db_populator.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/dialogs.dart';
 import 'sections.dart';
@@ -21,153 +22,212 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
 
   bool _showLoading = true;
 
-  late final List<Recipe> _recipes = [
-    Recipe(
-      id: 'spaghetti',
-      name: 'Spaghetti Aglio e Olio',
-      icon: '🍝',
-      timeMinutes: 15,
-      ingredients: const [
-        '400g Spaghetti',
-        '6 cloves Garlic (thinly sliced)',
-        '1/2 cup Olive Oil',
-        '1 tsp Red Pepper Flakes',
-        'Fresh Parsley (chopped)',
-        'Parmesan Cheese (grated)',
-      ],
-      instructions: const [
-        'Bring a large pot of salted water to boil and cook spaghetti until al dente.',
-        'Heat olive oil in a pan over medium heat.',
-        'Add garlic and pepper flakes; saute until garlic is golden.',
-        'Drain pasta, reserving a little pasta water.',
-        'Toss pasta in garlic oil and loosen with pasta water as needed.',
-        'Finish with parsley and parmesan, then serve.',
-      ],
-    ),
-    Recipe(
-      id: 'friedrice',
-      name: 'Vegetable Fried Rice',
-      icon: '🍚',
-      timeMinutes: 20,
-      ingredients: const [
-        '3 cups Cooked Rice',
-        '2 Eggs',
-        '2 cups Mixed Vegetables',
-        '3 tbsp Soy Sauce',
-        '3 cloves Garlic',
-        '1 tbsp Ginger',
-      ],
-      instructions: const [
-        'Scramble eggs and set aside.',
-        'Saute garlic and ginger, then add vegetables.',
-        'Add rice and soy sauce, stirring over high heat.',
-        'Return eggs and toss with green onions before serving.',
-      ],
-    ),
-    Recipe(
-      id: 'stirfry',
-      name: 'Chicken Stir Fry',
-      icon: '🥗',
-      timeMinutes: 25,
-      ingredients: const [
-        '500g Chicken Breast',
-        '2 Bell Peppers',
-        '2 cups Broccoli',
-        '3 tbsp Soy Sauce',
-        '1 tbsp Ginger',
-      ],
-      instructions: const [
-        'Marinate chicken with soy sauce and cornstarch.',
-        'Stir-fry chicken until golden and set aside.',
-        'Cook aromatics and vegetables in a hot wok.',
-        'Return chicken, toss well, and cook through.',
-      ],
-    ),
-    Recipe(
-      id: 'grilledcheese',
-      name: 'Grilled Cheese Sandwich',
-      icon: '🥪',
-      timeMinutes: 10,
-      ingredients: const [
-        '2 slices Bread',
-        '2-3 slices Cheese',
-        '2 tbsp Butter',
-        'Tomato (optional)',
-      ],
-      instructions: const [
-        'Butter one side of each bread slice.',
-        'Layer cheese between bread slices.',
-        'Toast both sides in a pan until golden and melty.',
-      ],
-    ),
-    Recipe(
-      id: 'omelette',
-      name: 'Spanish Omelette',
-      icon: '🍳',
-      timeMinutes: 45,
-      imageUrl:
-          'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/spanish-omelette-7c2250c.jpg',
-      ingredients: const [
-        '6 Eggs',
-        '3 Potatoes',
-        '1 Onion',
-        '150ml extra-virgin olive oil',
-        '3 tbsp chopped flat-leaf parsley',
-      ],
-      instructions: const [
-        'Scrape the new potatoes or leave the skins on, if you prefer. Cut them into thick slices. Chop the onion.',
-        'Heat the extra-virgin olive oil in a large frying pan, add the potatoes and onion and stew gently, partially covered, for 30 mins, stirring occasionally until the potatoes are softened. Strain the potatoes and onion through a colander into a large bowl (set the strained oil aside).',
-        'Beat the eggs then stir into the potatoes with the parsley and plenty of salt and pepper. Heat a little of the strained oil in a smaller pan.',
-        'Tip everything into the pan and cook on a moderate heat until the bottom is golden and the top is almost set.',
-        'Invert the omelette onto a plate and slide back into the pan. Cook for another 5 minutes until golden on both sides.',
-      ],
-    ),
-    Recipe(
-      id: 'curry',
-      name: 'Vegetable Curry',
-      icon: '🥘',
-      timeMinutes: 30,
-      ingredients: const [
-        'Mixed Vegetables',
-        '1 can Coconut Milk',
-        '2 tbsp Curry Powder',
-        'Onion, Garlic, Ginger',
-      ],
-      instructions: const [
-        'Saute onion, garlic, and ginger.',
-        'Toast curry powder, then add vegetables.',
-        'Pour coconut milk and simmer until tender.',
-      ],
-    ),
-    Recipe(
-      id: 'pancakes',
-      name: 'Pancakes',
-      icon: '🥞',
-      timeMinutes: 15,
-      ingredients: const [
-        '2 Eggs',
-        '1 cup Milk',
-        '1 1/2 cups Flour',
-        'Butter',
-        'Sugar and Baking Powder',
-      ],
-      instructions: const [
-        'Whisk dry and wet ingredients separately.',
-        'Combine to make a smooth batter.',
-        'Cook on a hot pan until both sides are golden.',
-      ],
-    ),
-  ];
+  /// The recipes displayed on the home page.
+  ///
+  /// Initially populated with the hardcoded list. If [MealDbPopulator]
+  /// has a cached dataset, those recipes replace this list (or are
+  /// fetched on first launch and cached for offline use).
+  List<Recipe> _recipes = _hardcodedRecipes();
+
+  /// The hardcoded fallback recipe list used when offline / first launch.
+  static List<Recipe> _hardcodedRecipes() {
+    return [
+      Recipe(
+        id: 'spaghetti',
+        name: 'Spaghetti Aglio e Olio',
+        icon: '🍝',
+        timeMinutes: 15,
+        ingredients: const [
+          '400g Spaghetti',
+          '6 cloves Garlic (thinly sliced)',
+          '1/2 cup Olive Oil',
+          '1 tsp Red Pepper Flakes',
+          'Fresh Parsley (chopped)',
+          'Parmesan Cheese (grated)',
+        ],
+        instructions: const [
+          'Bring a large pot of salted water to boil and cook spaghetti until al dente.',
+          'Heat olive oil in a pan over medium heat.',
+          'Add garlic and pepper flakes; saute until garlic is golden.',
+          'Drain pasta, reserving a little pasta water.',
+          'Toss pasta in garlic oil and loosen with pasta water as needed.',
+          'Finish with parsley and parmesan, then serve.',
+        ],
+      ),
+      Recipe(
+        id: 'friedrice',
+        name: 'Vegetable Fried Rice',
+        icon: '🍚',
+        timeMinutes: 20,
+        ingredients: const [
+          '3 cups Cooked Rice',
+          '2 Eggs',
+          '2 cups Mixed Vegetables',
+          '3 tbsp Soy Sauce',
+          '3 cloves Garlic',
+          '1 tbsp Ginger',
+        ],
+        instructions: const [
+          'Scramble eggs and set aside.',
+          'Saute garlic and ginger, then add vegetables.',
+          'Add rice and soy sauce, stirring over high heat.',
+          'Return eggs and toss with green onions before serving.',
+        ],
+      ),
+      Recipe(
+        id: 'stirfry',
+        name: 'Chicken Stir Fry',
+        icon: '🥗',
+        timeMinutes: 25,
+        ingredients: const [
+          '500g Chicken Breast',
+          '2 Bell Peppers',
+          '2 cups Broccoli',
+          '3 tbsp Soy Sauce',
+          '1 tbsp Ginger',
+        ],
+        instructions: const [
+          'Marinate chicken with soy sauce and cornstarch.',
+          'Stir-fry chicken until golden and set aside.',
+          'Cook aromatics and vegetables in a hot wok.',
+          'Return chicken, toss well, and cook through.',
+        ],
+      ),
+      Recipe(
+        id: 'grilledcheese',
+        name: 'Grilled Cheese Sandwich',
+        icon: '🥪',
+        timeMinutes: 10,
+        ingredients: const [
+          '2 slices Bread',
+          '2-3 slices Cheese',
+          '2 tbsp Butter',
+          'Tomato (optional)',
+        ],
+        instructions: const [
+          'Butter one side of each bread slice.',
+          'Layer cheese between bread slices.',
+          'Toast both sides in a pan until golden and melty.',
+        ],
+      ),
+      Recipe(
+        id: 'omelette',
+        name: 'Spanish Omelette',
+        icon: '🍳',
+        timeMinutes: 45,
+        imageUrl:
+            'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/spanish-omelette-7c2250c.jpg',
+        ingredients: const [
+          '6 Eggs',
+          '3 Potatoes',
+          '1 Onion',
+          '150ml extra-virgin olive oil',
+          '3 tbsp chopped flat-leaf parsley',
+        ],
+        instructions: const [
+          'Scrape the new potatoes or leave the skins on, if you prefer. Cut them into thick slices. Chop the onion.',
+          'Heat the extra-virgin olive oil in a large frying pan, add the potatoes and onion and stew gently, partially covered, for 30 mins, stirring occasionally until the potatoes are softened. Strain the potatoes and onion through a colander into a large bowl (set the strained oil aside).',
+          'Beat the eggs then stir into the potatoes with the parsley and plenty of salt and pepper. Heat a little of the strained oil in a smaller pan.',
+          'Tip everything into the pan and cook on a moderate heat until the bottom is golden and the top is almost set.',
+          'Invert the omelette onto a plate and slide back into the pan. Cook for another 5 minutes until golden on both sides.',
+        ],
+      ),
+      Recipe(
+        id: 'curry',
+        name: 'Vegetable Curry',
+        icon: '🥘',
+        timeMinutes: 30,
+        ingredients: const [
+          'Mixed Vegetables',
+          '1 can Coconut Milk',
+          '2 tbsp Curry Powder',
+          'Onion, Garlic, Ginger',
+        ],
+        instructions: const [
+          'Saute onion, garlic, and ginger.',
+          'Toast curry powder, then add vegetables.',
+          'Pour coconut milk and simmer until tender.',
+        ],
+      ),
+      Recipe(
+        id: 'pancakes',
+        name: 'Pancakes',
+        icon: '🥞',
+        timeMinutes: 15,
+        ingredients: const [
+          '2 Eggs',
+          '1 cup Milk',
+          '1 1/2 cups Flour',
+          'Butter',
+          'Sugar and Baking Powder',
+        ],
+        instructions: const [
+          'Whisk dry and wet ingredients separately.',
+          'Combine to make a smooth batter.',
+          'Cook on a hot pan until both sides are golden.',
+        ],
+      ),
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
+
+    // Hide the loading animation after a short delay.
     Timer(const Duration(milliseconds: 1500), () {
       if (mounted) {
         setState(() {
           _showLoading = false;
         });
       }
+    });
+
+    // Attempt to load recipes from MealDbPopulator cache (fast, local file).
+    // If a cache exists, replace the hardcoded list. On first launch the
+    // populator will fetch from TheMealDB in the background.
+    _loadFromCache();
+  }
+
+  Future<void> _loadFromCache() async {
+    final cached = await MealDbPopulator.getRecipes();
+
+    if (!mounted) return;
+
+    if (cached != null && cached.isNotEmpty) {
+      // Successfully loaded from cache (or freshly fetched).
+      setState(() {
+        _recipes = cached;
+        _showLoading = false;
+      });
+
+      if (mounted) {
+        _showCacheSnackBar(
+          '✅ Loaded ${cached.length} recipes from TheMealDB!',
+        );
+      }
+    } else {
+      // No cache and no network — using hardcoded fallback.
+      if (mounted) {
+        _showCacheSnackBar(
+          '📖 Using ${_recipes.length} built-in recipes (offline)',
+        );
+      }
+    }
+  }
+
+  void _showCacheSnackBar(String message) {
+    // Delay slightly so it shows after the loading animation fades.
+    Future.delayed(const Duration(milliseconds: 1600), () {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
+      );
     });
   }
 
