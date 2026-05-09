@@ -1,10 +1,46 @@
 import 'package:flutter/material.dart';
 import 'allergy_filter_screen.dart';
+import '../models/recipe.dart';
+
+class SmartFilterResult {
+  final List<Recipe> recipes;
+  final String? dishType;
+  final bool isVegetarian;
+  final bool isVegan;
+  final bool isGlutenFree;
+  final bool isLowCarb;
+  final double totalTime;
+
+  SmartFilterResult({
+    required this.recipes,
+    this.dishType,
+    required this.isVegetarian,
+    required this.isVegan,
+    required this.isGlutenFree,
+    required this.isLowCarb,
+    required this.totalTime,
+  });
+}
 
 class SmartFilterScreen extends StatefulWidget {
-  final int initialTimeMinutes;
+  final List<Recipe> allRecipes;
+  final String? initialDishType;
+  final bool initialIsVegetarian;
+  final bool initialIsVegan;
+  final bool initialIsGlutenFree;
+  final bool initialIsLowCarb;
+  final double initialTotalTime;
 
-  const SmartFilterScreen({super.key, this.initialTimeMinutes = 120});
+  const SmartFilterScreen({
+    super.key,
+    required this.allRecipes,
+    this.initialDishType,
+    this.initialIsVegetarian = false,
+    this.initialIsVegan = false,
+    this.initialIsGlutenFree = false,
+    this.initialIsLowCarb = false,
+    this.initialTotalTime = 120,
+  });
 
   @override
   State<SmartFilterScreen> createState() => _SmartFilterScreenState();
@@ -13,8 +49,8 @@ class SmartFilterScreen extends StatefulWidget {
 class _SmartFilterScreenState extends State<SmartFilterScreen> {
   String? _selectedDishType;
 
-  bool _isVegetarian = true;
-  bool _isVegan = true;
+  bool _isVegetarian = false;
+  bool _isVegan = false;
   bool _isGlutenFree = false;
   bool _isLowCarb = false;
 
@@ -23,7 +59,88 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
   @override
   void initState() {
     super.initState();
-    _totalTime = widget.initialTimeMinutes.toDouble();
+    _selectedDishType = widget.initialDishType;
+    _isVegetarian = widget.initialIsVegetarian;
+    _isVegan = widget.initialIsVegan;
+    _isGlutenFree = widget.initialIsGlutenFree;
+    _isLowCarb = widget.initialIsLowCarb;
+    _totalTime = widget.initialTotalTime;
+  }
+
+  List<Recipe> _getFilteredRecipes() {
+    return widget.allRecipes.where((recipe) {
+      // 1. Time filter (if under 120 minutes)
+      if (_totalTime < 120 && recipe.timeMinutes > _totalTime) {
+        return false;
+      }
+
+      // 2. Dish type filter
+      if (_selectedDishType != null) {
+        final type = _selectedDishType!.toLowerCase();
+        bool matchesType = recipe.category.toLowerCase() == type ||
+            recipe.tags.any((tag) => tag.toLowerCase() == type);
+
+        // Smart mapping: TheMealDB doesn't use "Lunch", "Dinner", or "Snack" as categories.
+        // We map their ingredient-based categories to our dish types so filtering works.
+        if (!matchesType) {
+          final cat = recipe.category.toLowerCase();
+          if (type == 'dinner' || type == 'lunch') {
+            matchesType = ['chicken', 'beef', 'pork', 'lamb', 'seafood', 'pasta', 'goat', 'miscellaneous', 'vegetarian', 'vegan'].contains(cat);
+          } else if (type == 'snack') {
+            matchesType = ['starter', 'side', 'dessert'].contains(cat);
+          }
+        }
+
+        if (!matchesType) return false;
+      }
+
+      // 3. Dietary filter
+      if (_isVegetarian) {
+        bool isVeg = recipe.category.toLowerCase() == 'vegetarian' ||
+            recipe.category.toLowerCase() == 'vegan' ||
+            recipe.tags.any((t) =>
+                t.toLowerCase() == 'vegetarian' || t.toLowerCase() == 'vegan');
+
+        // Smart check for Vegetarian by excluding meats (since MealDB often forgets tags)
+        if (!isVeg) {
+          final meatKeywords = ['chicken', 'beef', 'pork', 'lamb', 'bacon', 'sausage', 'ham', 'fish', 'salmon', 'shrimp', 'prawn', 'tuna', 'meat', 'steak', 'prosciutto', 'turkey'];
+          isVeg = !recipe.ingredients.any(
+              (ing) => meatKeywords.any((kw) => ing.toLowerCase().contains(kw)));
+        }
+
+        if (!isVeg) return false;
+      }
+
+      if (_isVegan) {
+        bool isVegan = recipe.category.toLowerCase() == 'vegan' ||
+            recipe.tags.any((t) => t.toLowerCase() == 'vegan');
+        if (!isVegan) return false;
+      }
+
+      // Smart check for Gluten-Free by scanning ingredients
+      if (_isGlutenFree) {
+        final glutenKeywords = [
+          'flour', 'wheat', 'bread', 'pasta', 'spaghetti', 'macaroni',
+          'noodle', 'soy sauce', 'tortilla', 'pita', 'biscuit'
+        ];
+        bool hasGluten = recipe.ingredients.any(
+            (ing) => glutenKeywords.any((kw) => ing.toLowerCase().contains(kw)));
+        if (hasGluten) return false;
+      }
+
+      // Smart check for Low Carb by scanning ingredients
+      if (_isLowCarb) {
+        final carbKeywords = [
+          'rice', 'pasta', 'bread', 'potato', 'sugar', 'flour', 'noodle',
+          'spaghetti', 'honey', 'syrup', 'tortilla', 'biscuit'
+        ];
+        bool hasCarbs = recipe.ingredients.any(
+            (ing) => carbKeywords.any((kw) => ing.toLowerCase().contains(kw)));
+        if (hasCarbs) return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   @override
@@ -272,10 +389,19 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pop(
-                          context,
-                          _totalTime.toInt(),
-                        ); // Return selected time
+                      final filteredRecipes = _getFilteredRecipes();
+                      Navigator.pop(
+                        context,
+                        SmartFilterResult(
+                          recipes: filteredRecipes,
+                          dishType: _selectedDishType,
+                          isVegetarian: _isVegetarian,
+                          isVegan: _isVegan,
+                          isGlutenFree: _isGlutenFree,
+                          isLowCarb: _isLowCarb,
+                          totalTime: _totalTime,
+                        ),
+                      );
                       },
                       child: const Text(
                         'Apply Filters',

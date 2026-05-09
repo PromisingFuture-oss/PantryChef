@@ -21,7 +21,6 @@ class RecipeSearchService {
   static List<RecipeMatch> search({
     required List<Recipe> database,
     required List<String> userIngredients,
-    int? maxTimeMinutes,
   }) {
     if (userIngredients.isEmpty || database.isEmpty) return [];
 
@@ -34,10 +33,6 @@ class RecipeSearchService {
     final results = <RecipeMatch>[];
 
     for (final recipe in database) {
-      if (maxTimeMinutes != null && recipe.timeMinutes > maxTimeMinutes) {
-        continue;
-      }
-
       final matched = <String>[];
       final unmatched = <String>[];
 
@@ -85,12 +80,7 @@ class RecipeSearchService {
     var s = raw.toLowerCase().trim();
 
     // Remove leading quantity patterns like "400g", "2 tbsp", "1/2 cup", "3 cloves"
-    s = s.replaceAll(
-      RegExp(
-        r'^\d+[\d/]*\s*(g|kg|ml|l|tbsp|tsp|cup|cups|cloves?|slice[s]?|can|cans?)?\s*',
-      ),
-      '',
-    );
+    s = s.replaceAll(RegExp(r'^\d+[\d/]*\s*(g|kg|ml|l|tbsp|tsp|cup|cups|cloves?|slice[s]?|can|cans?)?\s*'), '');
 
     // Remove parenthetical notes like "(optional)", "(thinly sliced)"
     s = s.replaceAll(RegExp(r'\(.*?\)'), '');
@@ -98,6 +88,15 @@ class RecipeSearchService {
     // Remove punctuation except hyphens used in compound words
     s = s.replaceAll(RegExp(r'[^a-z0-9\s\-]'), '');
 
-    return s.trim();
+    s = s.trim();
+
+    // Basic plural stripping (e.g., "eggs" -> "egg", "potatoes" -> "potato")
+    if (s.endsWith('oes')) {
+      s = s.substring(0, s.length - 2);
+    } else if (s.endsWith('s') && !s.endsWith('ss')) {
+      s = s.substring(0, s.length - 1);
+    }
+
+    return s;
   }
 }

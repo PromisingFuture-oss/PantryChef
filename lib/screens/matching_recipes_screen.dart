@@ -21,7 +21,24 @@ class MatchingRecipesScreen extends StatefulWidget {
 class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
   late List<String> _userIngredients;
   late List<RecipeMatch> _results;
-  int? _maxTimeMinutes;
+
+  /// The full ingredient-matched results BEFORE any smart filter is applied.
+  /// This is kept separate so that when the user re-opens the Smart Filter,
+  /// they always filter from the original matched set — not from an already
+  /// narrowed set (which causes results to vanish on successive filter taps).
+  List<RecipeMatch>? _unfilteredResults;
+
+  /// The recipe database narrowed by the current smart filter (if any).
+  /// Used when re-searching with different ingredients via the search button.
+  List<Recipe>? _filteredDatabase;
+
+  // Active filter states to pass back to the filter screen
+  String? _activeDishType;
+  bool _activeIsVegetarian = false;
+  bool _activeIsVegan = false;
+  bool _activeIsGlutenFree = false;
+  bool _activeIsLowCarb = false;
+  double _activeTotalTime = 120;
 
   @override
   void initState() {
@@ -32,10 +49,12 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
 
   void _performSearch() {
     _results = RecipeSearchService.search(
-      database: widget.recipeDatabase,
+      database: _filteredDatabase ?? widget.recipeDatabase,
       userIngredients: _userIngredients,
-      maxTimeMinutes: _maxTimeMinutes == 120 ? null : _maxTimeMinutes,
     );
+    // Keep a snapshot of the original unfiltered results.
+    // We clone by ID so the match objects remain independent.
+    _unfilteredResults = List.from(_results);
   }
 
   @override
@@ -215,18 +234,55 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
                 children: [
                   InkWell(
                     onTap: () async {
-                      final result = await Navigator.push<int>(
+                      // Always open the Smart Filter with the ORIGINAL (unfiltered)
+                      // ingredient-matched recipes. This prevents a bug where:
+                      //   Tap 1: filter by "Dinner"  → _results narrowed to Dinner
+                      //   Tap 2: filter narrowing again on Dinner-only → even fewer results
+                      //   Tap 3: etc → results quickly drop to 0.
+                      //
+                      // By always starting from _unfilteredResults, subsequent filter
+                      // taps always work on the same full set of ingredient-matched recipes.
+                      final baseMatches =
+                          (_unfilteredResults ?? _results)
+                              .map((r) => r.recipe)
+                              .toList();
+                      final result = await Navigator.push<SmartFilterResult>(
                         context,
                         MaterialPageRoute(
                           builder: (context) => SmartFilterScreen(
-                            initialTimeMinutes: _maxTimeMinutes ?? 120,
+                            allRecipes: baseMatches,
+                            initialDishType: _activeDishType,
+                            initialIsVegetarian: _activeIsVegetarian,
+                            initialIsVegan: _activeIsVegan,
+                            initialIsGlutenFree: _activeIsGlutenFree,
+                            initialIsLowCarb: _activeIsLowCarb,
+                            initialTotalTime: _activeTotalTime,
                           ),
                         ),
                       );
                       if (result != null) {
                         setState(() {
-                          _maxTimeMinutes = result;
-                          _performSearch();
+                          _activeDishType = result.dishType;
+                          _activeIsVegetarian = result.isVegetarian;
+                          _activeIsVegan = result.isVegan;
+                          _activeIsGlutenFree = result.isGlutenFree;
+                          _activeIsLowCarb = result.isLowCarb;
+                          _activeTotalTime = result.totalTime;
+
+                          // Filter the ORIGINAL unfiltered results by recipe ID.
+                          // This avoids re-running the ingredient search and preserves
+                          // the exact match scores, matched/unmatched lists, and rankings.
+                          // IMPORTANT: Always filter _unfilteredResults (the original full
+                          // match set), NOT _results. On the second filter tap, _results
+                          // is already narrowed from the first filter, so applying the new
+                          // filter on it would produce an intersection that yields 0 results.
+                          final resultIds = result.recipes.map((r) => r.id).toSet();
+                          _results = (_unfilteredResults ?? _results)
+                              .where((rm) => resultIds.contains(rm.recipe.id))
+                              .toList();
+                          // ✅ Also update _filteredDatabase so any subsequent ingredient
+                          // change (via the search button) will search within this filtered set.
+                          _filteredDatabase = result.recipes;
                         });
                       }
                     },

@@ -203,6 +203,13 @@ class MealDbPopulator {
     final area = (meal['strArea'] as String? ?? '');
     final imageUrl = (meal['strMealThumb'] as String? ?? '');
     final instructionsRaw = (meal['strInstructions'] as String? ?? '');
+    final tagsRaw = (meal['strTags'] as String? ?? '');
+
+    final tags = tagsRaw
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
 
     // Build ingredients list by pairing strIngredientN + strMeasureN.
     final ingredients = <String>[];
@@ -241,6 +248,8 @@ class MealDbPopulator {
       timeMinutes: timeMinutes,
       ingredients: ingredients,
       instructions: instructions,
+      category: category,
+      tags: tags,
       imageUrl: imageUrl.isNotEmpty ? imageUrl : null,
     );
   }

@@ -6,6 +6,8 @@ class Recipe {
     required this.timeMinutes,
     required this.ingredients,
     required this.instructions,
+    this.category = '',
+    this.tags = const [],
     this.imageUrl,
   });
 
@@ -15,6 +17,8 @@ class Recipe {
   final int timeMinutes;
   final List<String> ingredients;
   final List<String> instructions;
+  final String category;
+  final List<String> tags;
   final String? imageUrl;
 
   /// Create a [Recipe] from a JSON map.
@@ -30,6 +34,12 @@ class Recipe {
       instructions: (json['instructions'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
+      category: json['category'] as String? ?? '',
+      tags: json['tags'] != null
+          ? (json['tags'] as List<dynamic>)
+              .map((e) => e as String)
+              .toList()
+          : [],
       imageUrl: json['imageUrl'] as String?,
     );
   }
@@ -43,6 +53,8 @@ class Recipe {
       'timeMinutes': timeMinutes,
       'ingredients': ingredients,
       'instructions': instructions,
+      'category': category,
+      'tags': tags,
       'imageUrl': imageUrl,
     };
   }

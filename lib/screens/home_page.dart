@@ -22,12 +22,15 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
 
   bool _showLoading = true;
 
-  /// The recipes displayed on the home page.
+  /// The full list of recipes available for searching.
   ///
   /// Initially populated with the hardcoded list. If [MealDbPopulator]
   /// has a cached dataset, those recipes replace this list (or are
   /// fetched on first launch and cached for offline use).
-  List<Recipe> _recipes = _hardcodedRecipes();
+  List<Recipe> _allRecipes = _hardcodedRecipes();
+
+  /// The up to 10 random recipes displayed on the home page as suggestions.
+  late List<Recipe> _suggestedRecipes;
 
   /// The hardcoded fallback recipe list used when offline / first launch.
   static List<Recipe> _hardcodedRecipes() {
@@ -37,6 +40,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Spaghetti Aglio e Olio',
         icon: '🍝',
         timeMinutes: 15,
+        category: 'Pasta',
+        tags: const ['Vegetarian', 'Dinner'],
         ingredients: const [
           '400g Spaghetti',
           '6 cloves Garlic (thinly sliced)',
@@ -59,6 +64,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Vegetable Fried Rice',
         icon: '🍚',
         timeMinutes: 20,
+        category: 'Vegetarian',
+        tags: const ['Lunch', 'Dinner'],
         ingredients: const [
           '3 cups Cooked Rice',
           '2 Eggs',
@@ -79,6 +86,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Chicken Stir Fry',
         icon: '🥗',
         timeMinutes: 25,
+        category: 'Chicken',
+        tags: const ['Dinner'],
         ingredients: const [
           '500g Chicken Breast',
           '2 Bell Peppers',
@@ -98,6 +107,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Grilled Cheese Sandwich',
         icon: '🥪',
         timeMinutes: 10,
+        category: 'Miscellaneous',
+        tags: const ['Lunch', 'Snack', 'Vegetarian'],
         ingredients: const [
           '2 slices Bread',
           '2-3 slices Cheese',
@@ -115,6 +126,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Spanish Omelette',
         icon: '🍳',
         timeMinutes: 45,
+        category: 'Breakfast',
+        tags: const ['Vegetarian'],
         imageUrl:
             'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/spanish-omelette-7c2250c.jpg',
         ingredients: const [
@@ -137,6 +150,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Vegetable Curry',
         icon: '🥘',
         timeMinutes: 30,
+        category: 'Vegetarian',
+        tags: const ['Vegan', 'Dinner'],
         ingredients: const [
           'Mixed Vegetables',
           '1 can Coconut Milk',
@@ -154,6 +169,8 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
         name: 'Pancakes',
         icon: '🥞',
         timeMinutes: 15,
+        category: 'Breakfast',
+        tags: const ['Vegetarian', 'Snack'],
         ingredients: const [
           '2 Eggs',
           '1 cup Milk',
@@ -173,6 +190,9 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
   @override
   void initState() {
     super.initState();
+
+    _allRecipes.shuffle();
+    _suggestedRecipes = _allRecipes.take(10).toList();
 
     // Hide the loading animation after a short delay.
     Timer(const Duration(milliseconds: 1500), () {
@@ -196,8 +216,10 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
 
     if (cached != null && cached.isNotEmpty) {
       // Successfully loaded from cache (or freshly fetched).
+      cached.shuffle();
       setState(() {
-        _recipes = cached;
+        _allRecipes = cached;
+        _suggestedRecipes = cached.take(10).toList();
         _showLoading = false;
       });
 
@@ -210,7 +232,7 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
       // No cache and no network — using hardcoded fallback.
       if (mounted) {
         _showCacheSnackBar(
-          '📖 Using ${_recipes.length} built-in recipes (offline)',
+          '📖 Using ${_allRecipes.length} built-in recipes (offline)',
         );
       }
     }
@@ -363,7 +385,7 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
               SliverToBoxAdapter(
                 child: HeroSection(
                   onFindRecipesTap: () =>
-                      RecipeDialogs.showFindRecipes(context, _recipes),
+                      RecipeDialogs.showFindRecipes(context, _allRecipes),
                   onScrollTap: () => _scrollToSection(_cookSectionKey),
                   scrollControllerKey: _cookSectionKey,
                 ),
@@ -371,7 +393,7 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
               SliverToBoxAdapter(child: const FeaturesSection()),
               SliverToBoxAdapter(
                 child: RecipesSection(
-                  recipes: _recipes,
+                  recipes: _suggestedRecipes,
                   sectionKey: _recipesSectionKey,
                   onRecipeTap: (recipe) =>
                       RecipeDialogs.showRecipeDetail(context, recipe),
