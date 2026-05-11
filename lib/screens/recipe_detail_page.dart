@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
 
 class RecipeDetailPage extends StatelessWidget {
@@ -59,11 +60,13 @@ class RecipeDetailPage extends StatelessWidget {
                   child: recipe.imageUrl != null
                       ? Padding(
                           padding: const EdgeInsets.all(20),
-                          child: Image.network(
-                            recipe.imageUrl!,
+                          child: CachedNetworkImage(
+                            imageUrl: recipe.imageUrl!,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
+                            errorWidget: (context, url, error) =>
                                 Text(recipe.icon, style: const TextStyle(fontSize: 80)),
+                            placeholder: (context, url) =>
+                                const Center(child: CircularProgressIndicator(color: Color(0xFF93B799))),
                           ),
                         )
                       : Text(

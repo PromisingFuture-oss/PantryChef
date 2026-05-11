@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AllergyFilterScreen extends StatefulWidget {
-  const AllergyFilterScreen({super.key});
+  final Set<String> initialAllergens;
+
+  const AllergyFilterScreen({
+    super.key,
+    this.initialAllergens = const {},
+  });
 
   @override
   State<AllergyFilterScreen> createState() => _AllergyFilterScreenState();
@@ -21,9 +26,15 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
     'Mustard',
   ];
 
-  final Set<String> _selectedAllergens = {'Dairy'};
+  late Set<String> _selectedAllergens;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAllergens = Set.from(widget.initialAllergens);
+  }
 
   @override
   void dispose() {
@@ -60,7 +71,7 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
                 IconButton(
                   icon: const Icon(Icons.menu, color: Colors.white, size: 28),
                   onPressed: () {
-                    // Menu action
+                    Navigator.pop(context);
                   },
                 ),
               ],
@@ -175,6 +186,33 @@ class _AllergyFilterScreenState extends State<AllergyFilterScreen> {
                       .map((allergen) => _buildAllergenItem(allergen)),
 
                   const SizedBox(height: 40),
+
+                  // Apply Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF8C69),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context, _selectedAllergens);
+                      },
+                      child: const Text(
+                        'Apply Allergens',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import 'database_helper.dart';
 import '../models/recipe.dart';
 
 /// Populates a local recipe cache from TheMealDB API.
@@ -17,7 +16,6 @@ class MealDbPopulator {
   MealDbPopulator._();
 
   static const String _baseUrl = 'https://www.themealdb.com/api/json/v1/1';
-  static const String _cacheFileName = 'pantrychef_recipes.json';
 
   /// Mapping from TheMealDB category → emoji icon.
   static const Map<String, String> _categoryIcons = {
@@ -44,17 +42,22 @@ class MealDbPopulator {
   /// Returns cached recipes, or fetches them from TheMealDB if the cache
   /// doesn't exist yet. Returns `null` if both approaches fail.
   static Future<List<Recipe>?> getRecipes() async {
-    final cached = await _loadCache();
-    if (cached != null) {
-      debugPrint('[MealDbPopulator] Loaded ${cached.length} recipes from cache.');
-      return cached;
+    try {
+      final cached = await DatabaseHelper.instance.getAllRecipes();
+      if (cached.isNotEmpty) {
+        debugPrint('[MealDbPopulator] Loaded ${cached.length} recipes from SQLite.');
+        return cached;
+      }
+    } catch (e) {
+      debugPrint('[MealDbPopulator] SQLite load error: $e');
     }
 
     debugPrint('[MealDbPopulator] No cache found. Fetching from TheMealDB…');
     try {
       final recipes = await _fetchAll();
       if (recipes.isNotEmpty) {
-        await _saveCache(recipes);
+        await DatabaseHelper.instance.insertRecipes(recipes);
+        debugPrint('[MealDbPopulator] Saved ${recipes.length} recipes to SQLite.');
         return recipes;
       }
     } catch (e) {
@@ -68,7 +71,9 @@ class MealDbPopulator {
     try {
       final recipes = await _fetchAll();
       if (recipes.isNotEmpty) {
-        await _saveCache(recipes);
+        await DatabaseHelper.instance.clearAllRecipes();
+        await DatabaseHelper.instance.insertRecipes(recipes);
+        debugPrint('[MealDbPopulator] Saved ${recipes.length} recipes to SQLite after refresh.');
         return recipes;
       }
     } catch (e) {
@@ -81,34 +86,7 @@ class MealDbPopulator {
   // Cache I/O
   // --------------------------------------------------------------------------
 
-  static Future<File> _cacheFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/$_cacheFileName');
-  }
-
-  static Future<List<Recipe>?> _loadCache() async {
-    try {
-      final file = await _cacheFile();
-      if (!await file.exists()) return null;
-      final contents = await file.readAsString();
-      final list = jsonDecode(contents) as List<dynamic>;
-      return list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList();
-    } catch (e) {
-      debugPrint('[MealDbPopulator] Cache load error: $e');
-      return null;
-    }
-  }
-
-  static Future<void> _saveCache(List<Recipe> recipes) async {
-    try {
-      final file = await _cacheFile();
-      final contents = jsonEncode(recipes.map((r) => r.toJson()).toList());
-      await file.writeAsString(contents);
-      debugPrint('[MealDbPopulator] Saved ${recipes.length} recipes to cache.');
-    } catch (e) {
-      debugPrint('[MealDbPopulator] Cache save error: $e');
-    }
-  }
+  // Removed JSON Cache I/O methods
 
   // --------------------------------------------------------------------------
   // TheMealDB API calls

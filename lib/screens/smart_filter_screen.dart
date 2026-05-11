@@ -10,6 +10,7 @@ class SmartFilterResult {
   final bool isGlutenFree;
   final bool isLowCarb;
   final double totalTime;
+  final Set<String> excludedAllergens;
 
   SmartFilterResult({
     required this.recipes,
@@ -19,6 +20,7 @@ class SmartFilterResult {
     required this.isGlutenFree,
     required this.isLowCarb,
     required this.totalTime,
+    required this.excludedAllergens,
   });
 }
 
@@ -30,6 +32,7 @@ class SmartFilterScreen extends StatefulWidget {
   final bool initialIsGlutenFree;
   final bool initialIsLowCarb;
   final double initialTotalTime;
+  final Set<String> initialExcludedAllergens;
 
   const SmartFilterScreen({
     super.key,
@@ -40,6 +43,7 @@ class SmartFilterScreen extends StatefulWidget {
     this.initialIsGlutenFree = false,
     this.initialIsLowCarb = false,
     this.initialTotalTime = 120,
+    this.initialExcludedAllergens = const {},
   });
 
   @override
@@ -55,6 +59,7 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
   bool _isLowCarb = false;
 
   late double _totalTime;
+  late Set<String> _excludedAllergens;
 
   @override
   void initState() {
@@ -65,6 +70,7 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
     _isGlutenFree = widget.initialIsGlutenFree;
     _isLowCarb = widget.initialIsLowCarb;
     _totalTime = widget.initialTotalTime;
+    _excludedAllergens = Set.from(widget.initialExcludedAllergens);
   }
 
   List<Recipe> _getFilteredRecipes() {
@@ -84,8 +90,10 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
         // We map their ingredient-based categories to our dish types so filtering works.
         if (!matchesType) {
           final cat = recipe.category.toLowerCase();
-          if (type == 'dinner' || type == 'lunch') {
-            matchesType = ['chicken', 'beef', 'pork', 'lamb', 'seafood', 'pasta', 'goat', 'miscellaneous', 'vegetarian', 'vegan'].contains(cat);
+          if (type == 'lunch') {
+            matchesType = ['chicken', 'seafood', 'pasta', 'vegetarian', 'vegan', 'miscellaneous'].contains(cat);
+          } else if (type == 'dinner') {
+            matchesType = ['beef', 'pork', 'lamb', 'goat'].contains(cat);
           } else if (type == 'snack') {
             matchesType = ['starter', 'side', 'dessert'].contains(cat);
           }
@@ -137,6 +145,32 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
         bool hasCarbs = recipe.ingredients.any(
             (ing) => carbKeywords.any((kw) => ing.toLowerCase().contains(kw)));
         if (hasCarbs) return false;
+      }
+
+      // 4. Allergy filter
+      if (_excludedAllergens.isNotEmpty) {
+        final Map<String, List<String>> allergyKeywords = {
+          'Dairy': ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'ghee', 'whey'],
+          'Eggs': ['egg', 'mayonnaise', 'meringue'],
+          'Peanuts': ['peanut'],
+          'Tree Nuts': ['almond', 'walnut', 'pecan', 'cashew', 'pistachio', 'macadamia', 'hazelnut', 'pine nut'],
+          'Fish': ['fish', 'salmon', 'tuna', 'cod', 'sardine', 'anchovy', 'tilapia', 'trout', 'halibut'],
+          'Shellfish': ['shrimp', 'prawn', 'crab', 'lobster', 'mussel', 'oyster', 'scallop', 'clam', 'squid'],
+          'Soy': ['soy', 'tofu', 'miso', 'edamame', 'tempeh'],
+          'Wheat': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'soy sauce', 'pita', 'tortilla'],
+          'Sesame': ['sesame', 'tahini'],
+          'Mustard': ['mustard'],
+        };
+
+        bool hasAllergen = false;
+        for (final allergen in _excludedAllergens) {
+          final keywords = allergyKeywords[allergen] ?? [];
+          if (recipe.ingredients.any((ing) => keywords.any((kw) => ing.toLowerCase().contains(kw)))) {
+            hasAllergen = true;
+            break;
+          }
+        }
+        if (hasAllergen) return false;
       }
 
       return true;
@@ -356,17 +390,26 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final result = await Navigator.push<Set<String>>(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const AllergyFilterScreen(),
+                            builder: (context) => AllergyFilterScreen(
+                              initialAllergens: _excludedAllergens,
+                            ),
                           ),
                         );
+                        if (result != null) {
+                          setState(() {
+                            _excludedAllergens = result;
+                          });
+                        }
                       },
-                      child: const Text(
-                        'Allergies Filter',
-                        style: TextStyle(
+                      child: Text(
+                        _excludedAllergens.isNotEmpty
+                            ? 'Allergies Filter (${_excludedAllergens.length})'
+                            : 'Allergies Filter',
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: Colors.white,
@@ -400,6 +443,7 @@ class _SmartFilterScreenState extends State<SmartFilterScreen> {
                           isGlutenFree: _isGlutenFree,
                           isLowCarb: _isLowCarb,
                           totalTime: _totalTime,
+                          excludedAllergens: _excludedAllergens,
                         ),
                       );
                       },

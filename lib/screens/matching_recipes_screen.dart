@@ -39,6 +39,7 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
   bool _activeIsGlutenFree = false;
   bool _activeIsLowCarb = false;
   double _activeTotalTime = 120;
+  Set<String> _activeExcludedAllergens = {};
 
   @override
   void initState() {
@@ -257,6 +258,7 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
                             initialIsGlutenFree: _activeIsGlutenFree,
                             initialIsLowCarb: _activeIsLowCarb,
                             initialTotalTime: _activeTotalTime,
+                            initialExcludedAllergens: _activeExcludedAllergens,
                           ),
                         ),
                       );
@@ -268,6 +270,7 @@ class _MatchingRecipesScreenState extends State<MatchingRecipesScreen> {
                           _activeIsGlutenFree = result.isGlutenFree;
                           _activeIsLowCarb = result.isLowCarb;
                           _activeTotalTime = result.totalTime;
+                          _activeExcludedAllergens = result.excludedAllergens;
 
                           // Filter the ORIGINAL unfiltered results by recipe ID.
                           // This avoids re-running the ingredient search and preserves
