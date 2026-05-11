@@ -1,18 +1,6 @@
-﻿import 'package:flutter/material.dart';
-
-class PantryItem {
-  String name;
-  bool isChecked;
-  int qty;
-  String exp;
-
-  PantryItem({
-    required this.name,
-    this.isChecked = true,
-    this.qty = 1,
-    this.exp = '-',
-  });
-}
+import 'package:flutter/material.dart';
+import '../models/pantry_item.dart';
+import '../services/database_helper.dart';
 
 class PantryCategory {
   String name;
@@ -29,60 +17,51 @@ class PantryShoppingScreen extends StatefulWidget {
 }
 
 class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
-  final List<PantryCategory> _shoppingCategories = [
-    PantryCategory(
-      name: 'Dairy',
-      items: [
-        PantryItem(name: 'Milk'),
-        PantryItem(name: 'Cheese'),
-        PantryItem(name: 'Yogurt'),
-        PantryItem(name: 'Butter', isChecked: false),
-      ],
-    ),
-    PantryCategory(
-      name: 'Produce',
-      items: [
-        PantryItem(name: 'Spinach'),
-        PantryItem(name: 'Potatoes', isChecked: false),
-        PantryItem(name: 'Onions', isChecked: false),
-      ],
-    ),
-    PantryCategory(
-      name: 'Protein',
-      items: [
-        PantryItem(name: 'Pork'),
-        PantryItem(name: 'Turkey'),
-      ],
-    ),
-  ];
+  List<PantryCategory> _categories = [];
+  final List<PantryItem> _deletedItems = [];
+  bool _isLoading = true;
 
-  final List<PantryCategory> _categories = [
-    PantryCategory(
-      name: 'Dairy',
-      items: [
-        PantryItem(name: 'Milk'),
-        PantryItem(name: 'Cheese'),
-        PantryItem(name: 'Yogurt'),
-        PantryItem(name: 'Butter', isChecked: false),
-      ],
-    ),
-    PantryCategory(
-      name: 'Produce',
-      items: [
-        PantryItem(name: 'Spinach'),
-        PantryItem(name: 'Potatoes'),
-        PantryItem(name: 'Onions'),
-      ],
-    ),
-    PantryCategory(
-      name: 'Protein',
-      items: [
-        PantryItem(name: 'Chicken'),
-        PantryItem(name: 'Beef'),
-        PantryItem(name: 'Fish'),
-      ],
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadPantryItems();
+  }
+
+  Future<void> _loadPantryItems() async {
+    final items = await DatabaseHelper.instance.getAllPantryItems();
+    
+    // Group by category
+    final Map<String, List<PantryItem>> grouped = {};
+    for (final item in items) {
+      grouped.putIfAbsent(item.category, () => []).add(item);
+    }
+    
+    setState(() {
+      if (grouped.isEmpty) {
+        _categories = [
+          PantryCategory(name: 'Dairy', items: []),
+          PantryCategory(name: 'Produce', items: []),
+          PantryCategory(name: 'Protein', items: []),
+        ];
+      } else {
+        _categories = grouped.entries
+            .map((e) => PantryCategory(name: e.key, items: e.value))
+            .toList();
+        
+        // Ensure basic categories exist even if empty
+        final existingNames = _categories.map((e) => e.name).toSet();
+        for (final basic in ['Dairy', 'Produce', 'Protein']) {
+          if (!existingNames.contains(basic)) {
+            _categories.add(PantryCategory(name: basic, items: []));
+          }
+        }
+        
+        // Sort categories
+        _categories.sort((a, b) => a.name.compareTo(b.name));
+      }
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,16 +120,49 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               ),
             ),
             Expanded(
-              child: TabBarView(
-                children: [_buildVirtualPantryTab(), _buildShoppingListTab()],
-              ),
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF78A083)))
+                : TabBarView(
+                    children: [_buildVirtualPantryTab(), _buildShoppingListTab()],
+                  ),
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    setState(() => _isLoading = true);
+                    
+                    // 1. Delete removed items from DB
+                    for (var item in _deletedItems) {
+                      if (item.id != null) {
+                        await DatabaseHelper.instance.deletePantryItem(item.id!);
+                      }
+                    }
+                    _deletedItems.clear();
+                    
+                    // 2. Save or update remaining items
+                    for (var cat in _categories) {
+                      for (var item in cat.items) {
+                        if (item.id == null) {
+                          item.id = await DatabaseHelper.instance.insertPantryItem(item);
+                        } else {
+                          await DatabaseHelper.instance.updatePantryItem(item);
+                        }
+                      }
+                    }
+                    
+                    setState(() => _isLoading = false);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Pantry & Shopping List Saved!'),
+                          backgroundColor: Color(0xFF78A083),
+                        ),
+                      );
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF99874), // Orange color
                     foregroundColor: Colors.white,
@@ -226,7 +238,7 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            ...category.items.map((item) => _buildItemRow(item)),
+            ...category.items.map((item) => _buildItemRow(category, item)),
             const SizedBox(height: 8),
             Container(
               height: 36,
@@ -234,9 +246,19 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
                 border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: 'Add Item',
+              child: TextField(
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(() {
+                      category.items.add(PantryItem(
+                        category: category.name,
+                        name: value.trim(),
+                      ));
+                    });
+                  }
+                },
+                decoration: const InputDecoration(
+                  hintText: 'Add Item (Press Enter)',
                   hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
@@ -252,7 +274,7 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
     );
   }
 
-  Widget _buildItemRow(PantryItem item) {
+  Widget _buildItemRow(PantryCategory category, PantryItem item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -279,9 +301,15 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              item.name,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+            child: GestureDetector(
+              onLongPress: () => _showEditItemDialog(item),
+              child: Container(
+                color: Colors.transparent, // Ensures long press registers on the whole expanded area
+                child: Text(
+                  item.name,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                ),
+              ),
             ),
           ),
           Container(
@@ -296,7 +324,11 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               children: [
                 InkWell(
                   onTap: () {
-                    if (item.qty > 0) setState(() => item.qty--);
+                    if (item.qty > 1) {
+                      setState(() => item.qty--);
+                    } else if (item.qty == 1) {
+                      _showDeleteConfirmationDialog(category, item);
+                    }
                   },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -305,8 +337,9 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
                 ),
                 Text('${item.qty}', style: const TextStyle(fontSize: 12)),
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     setState(() => item.qty++);
+                    await DatabaseHelper.instance.updatePantryItem(item);
                   },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -317,27 +350,54 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            height: 24,
-            width: 45,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade400),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    item.exp,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
+          GestureDetector(
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2101),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF78A083), // Green header
+                        onPrimary: Colors.white, // Text on header
+                        onSurface: Color(0xFF333333), // Body text
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (picked != null) {
+                setState(() {
+                  item.exp = '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}';
+                });
+              }
+            },
+            child: Container(
+              height: 24,
+              width: 55, // Adjusted to fit MM/DD
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      item.exp,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
-                ),
-                const Icon(Icons.arrow_drop_down, size: 16),
-              ],
+                  const Icon(Icons.arrow_drop_down, size: 16),
+                ],
+              ),
             ),
           ),
         ],
@@ -348,9 +408,15 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
   Widget _buildShoppingListTab() {
     return ListView.builder(
       padding: const EdgeInsets.all(12.0),
-      itemCount: _shoppingCategories.length,
+      itemCount: _categories.length,
       itemBuilder: (context, index) {
-        return _buildShoppingCategorySection(_shoppingCategories[index]);
+        // Show only unchecked items in shopping list
+        final category = _categories[index];
+        final uncheckedItems = category.items.where((i) => !i.isChecked).toList();
+        if (uncheckedItems.isEmpty) return const SizedBox();
+        
+        final filteredCategory = PantryCategory(name: category.name, items: uncheckedItems);
+        return _buildShoppingCategorySection(filteredCategory);
       },
     );
   }
@@ -387,7 +453,7 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
                 ),
                 const SizedBox(width: 32),
                 const Text(
-                  'Type',
+                  'Unit',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -398,7 +464,7 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            ...category.items.map((item) => _buildShoppingItemRow(item)),
+            ...category.items.map((item) => _buildShoppingItemRow(category, item)),
             const SizedBox(height: 8),
             Container(
               height: 36,
@@ -406,9 +472,20 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
                 border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: 'Add Item',
+              child: TextField(
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(() {
+                      category.items.add(PantryItem(
+                        category: category.name,
+                        name: value.trim(),
+                        isChecked: false, // Start unchecked in shopping list
+                      ));
+                    });
+                  }
+                },
+                decoration: const InputDecoration(
+                  hintText: 'Add Item (Press Enter)',
                   hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
@@ -424,7 +501,7 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
     );
   }
 
-  Widget _buildShoppingItemRow(PantryItem item) {
+  Widget _buildShoppingItemRow(PantryCategory category, PantryItem item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -451,9 +528,15 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              item.name,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+            child: GestureDetector(
+              onLongPress: () => _showEditItemDialog(item),
+              child: Container(
+                color: Colors.transparent,
+                child: Text(
+                  item.name,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                ),
+              ),
             ),
           ),
           Container(
@@ -468,7 +551,11 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               children: [
                 InkWell(
                   onTap: () {
-                    if (item.qty > 0) setState(() => item.qty--);
+                    if (item.qty > 1) {
+                      setState(() => item.qty--);
+                    } else if (item.qty == 1) {
+                      _showDeleteConfirmationDialog(category, item);
+                    }
                   },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -477,8 +564,9 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
                 ),
                 Text('${item.qty}', style: const TextStyle(fontSize: 12)),
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     setState(() => item.qty++);
+                    await DatabaseHelper.instance.updatePantryItem(item);
                   },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -489,31 +577,151 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            height: 24,
-            width: 45,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade400),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    item.exp,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+          GestureDetector(
+            onTap: () async {
+              final String? selectedUnit = await showModalBottomSheet<String>(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-                const Icon(Icons.arrow_drop_down, size: 16),
-              ],
+                builder: (context) {
+                  final units = ['pcs', 'kg', 'g', 'L', 'ml', 'packs', 'boxes'];
+                  return SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Select Unit',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF78A083),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8.0,
+                            runSpacing: 8.0,
+                            alignment: WrapAlignment.center,
+                            children: units.map((u) => ActionChip(
+                              label: Text(u),
+                              backgroundColor: const Color(0xFFE8F0E4),
+                              side: BorderSide.none,
+                              onPressed: () => Navigator.pop(context, u),
+                            )).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+              if (selectedUnit != null) {
+                setState(() {
+                  item.unit = selectedUnit;
+                });
+              }
+            },
+            child: Container(
+              height: 24,
+              width: 55, // Adjusted width
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      item.unit,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, size: 16),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showEditItemDialog(PantryItem item) async {
+    final TextEditingController controller = TextEditingController(text: item.name);
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Item', style: TextStyle(color: Color(0xFF78A083))),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: "Item name",
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFF78A083)),
+              ),
+            ),
+            autofocus: true,
+            cursorColor: const Color(0xFF78A083),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF78A083)),
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  setState(() {
+                    item.name = controller.text.trim();
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showDeleteConfirmationDialog(PantryCategory category, PantryItem item) async {
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remove Item?'),
+          content: Text('Do you want to remove "${item.name}" from your list?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF99874)), // Orange to match app
+              onPressed: () {
+                setState(() {
+                  category.items.remove(item);
+                  if (item.id != null) {
+                    _deletedItems.add(item);
+                  }
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

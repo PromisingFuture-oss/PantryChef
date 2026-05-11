@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
+import '../models/pantry_item.dart';
+import '../services/database_helper.dart';
 
 class RecipeDetailPage extends StatelessWidget {
   const RecipeDetailPage({super.key, required this.recipe});
@@ -92,33 +94,54 @@ class RecipeDetailPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ...recipe.ingredients.map((ingredient) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 2),
-                              child: Icon(
-                                Icons.check_box,
-                                color: Color(0xFF76A21E),
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                ingredient,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  color: Color(0xFF333333),
-                                  fontWeight: FontWeight.w400,
+                  FutureBuilder<List<PantryItem>>(
+                    future: DatabaseHelper.instance.getAllPantryItems(),
+                    builder: (context, snapshot) {
+                      final pantryItems = snapshot.data ?? [];
+                      // Get all names of active (checked) virtual pantry items
+                      final activePantryNames = pantryItems
+                          .where((i) => i.isChecked)
+                          .map((i) => i.name.toLowerCase().trim())
+                          .toList();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: recipe.ingredients.map((ingredient) {
+                          // Check if any active pantry item matches the ingredient name
+                          final isAvailable = activePantryNames.any((pantryName) => 
+                              ingredient.toLowerCase().contains(pantryName));
+                              
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Icon(
+                                    isAvailable ? Icons.check_box : Icons.check_box_outline_blank,
+                                    color: isAvailable ? const Color(0xFF76A21E) : Colors.grey.shade400,
+                                    size: 22,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    ingredient,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      color: isAvailable ? const Color(0xFF333333) : Colors.grey.shade600,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
                   // Instructions Section
                   const Text(
