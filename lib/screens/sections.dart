@@ -3,7 +3,9 @@ import '../models/recipe.dart';
 import '../widgets/custom_widgets.dart';
 
 class LandingSection extends StatelessWidget {
-  const LandingSection({super.key});
+  const LandingSection({super.key, required this.onStartTap});
+  
+  final VoidCallback onStartTap;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +45,7 @@ class LandingSection extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             GestureDetector(
+              onTap: onStartTap,
               child: Column(
                 children: [
                   Container(

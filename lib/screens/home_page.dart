@@ -6,6 +6,8 @@ import '../widgets/custom_widgets.dart';
 import '../widgets/dialogs.dart';
 import 'sections.dart';
 import 'pantry_shopping_screen.dart';
+import '../models/pantry_item.dart';
+import '../services/database_helper.dart';
 
 class PantryChefHomePage extends StatefulWidget {
   const PantryChefHomePage({super.key});
@@ -21,6 +23,75 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
   final GlobalKey _aboutSectionKey = GlobalKey();
 
   bool _showLoading = true;
+  bool _hasShownWarning = false;
+
+  int _getDaysUntilExpiration(String expDate) {
+    if (expDate == '-') return 999;
+    try {
+      final parts = expDate.split('/');
+      if (parts.length == 2) {
+        final month = int.parse(parts[0]);
+        final day = int.parse(parts[1]);
+        final now = DateTime.now();
+        var expDateTime = DateTime(now.year, month, day);
+        if (expDateTime.isBefore(now) && now.difference(expDateTime).inDays > 180) {
+          expDateTime = DateTime(now.year + 1, month, day);
+        }
+        final today = DateTime(now.year, now.month, now.day);
+        return expDateTime.difference(today).inDays;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 999;
+  }
+
+  Future<void> _checkAndShowExpirationWarning() async {
+    if (_hasShownWarning) return;
+    
+    final items = await DatabaseHelper.instance.getAllPantryItems();
+    List<PantryItem> expiringItems = [];
+    
+    for (var item in items) {
+      if (item.isChecked && item.exp != '-') {
+        final days = _getDaysUntilExpiration(item.exp);
+        if (days <= 3) expiringItems.add(item);
+      }
+    }
+
+    if (expiringItems.isNotEmpty && mounted) {
+      _hasShownWarning = true;
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Expiring Soon!', style: TextStyle(color: Colors.orange)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('The following items in your Pantry are expiring within 3 days or already expired:'),
+                const SizedBox(height: 12),
+                ...expiringItems.map((item) => Text('• ${item.name} (${item.exp})')),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Got it', style: TextStyle(color: Color(0xFF78A083))),
+              ),
+            ],
+          );
+        }
+      );
+    }
+  }
 
   /// The full list of recipes available for searching.
   ///
@@ -265,6 +336,10 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
       return;
     }
 
+    if (key == _cookSectionKey) {
+      _checkAndShowExpirationWarning();
+    }
+
     await Scrollable.ensureVisible(
       context,
       duration: const Duration(milliseconds: 500),
@@ -349,15 +424,41 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
     ];
   }
 
+  bool _isCookSectionVisible() {
+    final context = _cookSectionKey.currentContext;
+    if (context == null) return false;
+    try {
+      final RenderBox box = context.findRenderObject() as RenderBox;
+      final position = box.localToGlobal(Offset.zero).dy;
+      final screenHeight = MediaQuery.of(this.context).size.height;
+      return position < screenHeight && position > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         Scaffold(
-          body: CustomScrollView(
+          body: NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              if (scrollInfo is ScrollEndNotification && !_hasShownWarning) {
+                if (_isCookSectionVisible()) {
+                  _checkAndShowExpirationWarning();
+                }
+              }
+              return false;
+            },
+            child: CustomScrollView(
             controller: _scrollController,
             slivers: [
-              SliverToBoxAdapter(child: LandingSection()),
+              SliverToBoxAdapter(
+                child: LandingSection(
+                  onStartTap: () => _scrollToSection(_cookSectionKey),
+                ),
+              ),
               SliverAppBar(
                 pinned: true,
                 expandedHeight: 92,
@@ -405,6 +506,7 @@ class _PantryChefHomePageState extends State<PantryChefHomePage> {
               SliverToBoxAdapter(child: const Footer()),
             ],
           ),
+        ),
         ),
         if (_showLoading)
           Positioned.fill(

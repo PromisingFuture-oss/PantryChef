@@ -21,6 +21,27 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
   final List<PantryItem> _deletedItems = [];
   bool _isLoading = true;
 
+  int _getDaysUntilExpiration(String expDate) {
+    if (expDate == '-') return 999;
+    try {
+      final parts = expDate.split('/');
+      if (parts.length == 2) {
+        final month = int.parse(parts[0]);
+        final day = int.parse(parts[1]);
+        final now = DateTime.now();
+        var expDateTime = DateTime(now.year, month, day);
+        if (expDateTime.isBefore(now) && now.difference(expDateTime).inDays > 180) {
+          expDateTime = DateTime(now.year + 1, month, day);
+        }
+        final today = DateTime(now.year, now.month, now.day);
+        return expDateTime.difference(today).inDays;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 999;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -275,6 +296,24 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
   }
 
   Widget _buildItemRow(PantryCategory category, PantryItem item) {
+    final daysUntilExp = _getDaysUntilExpiration(item.exp);
+    final isExpired = daysUntilExp < 0;
+    final isExpiringSoon = daysUntilExp >= 0 && daysUntilExp <= 3;
+    
+    Color expBgColor = Colors.white;
+    Color expTextColor = const Color(0xFF333333);
+    Color expBorderColor = Colors.grey.shade400;
+    
+    if (isExpired) {
+      expBgColor = Colors.red.shade50;
+      expTextColor = Colors.red;
+      expBorderColor = Colors.red.shade200;
+    } else if (isExpiringSoon) {
+      expBgColor = Colors.orange.shade50;
+      expTextColor = Colors.orange.shade800;
+      expBorderColor = Colors.orange.shade200;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -380,22 +419,28 @@ class _PantryShoppingScreenState extends State<PantryShoppingScreen> {
               height: 24,
               width: 55, // Adjusted to fit MM/DD
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: expBgColor,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey.shade400),
+                border: Border.all(color: expBorderColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
+                  if (isExpired || isExpiringSoon)
+                    Icon(
+                      Icons.warning_amber_rounded, 
+                      size: 12, 
+                      color: isExpired ? Colors.red : Colors.orange.shade800
+                    ),
                   Expanded(
                     child: Text(
                       item.exp,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: expTextColor, fontWeight: (isExpired || isExpiringSoon) ? FontWeight.bold : FontWeight.normal),
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down, size: 16),
+                  Icon(Icons.arrow_drop_down, size: 16, color: expTextColor),
                 ],
               ),
             ),
